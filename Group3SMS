@@ -1,0 +1,352 @@
+import java.io.*;
+import java.util.ArrayList;
+import java.util.InputMismatchException;
+import java.util.Scanner;
+
+/**
+ * Represents a student with name, ID, course, and grade information
+ */
+class Student {
+    // Student attributes
+    private String name;
+    private String id;
+    private String course;
+    private double grade;
+
+    /**
+     * Constructor to create a new Student object
+     */
+    public Student(String name, String id, String course, double grade) {
+        this.name = name;
+        this.id = id;
+        this.course = course;
+        this.grade = grade;
+    }
+
+    // Getter methods
+    public String getName() { return name; }
+    public String getId() { return id; }
+    public String getCourse() { return course; }
+    public double getGrade() { return grade; }
+
+    /**
+     * Returns formatted string representation of the student
+     */
+    @Override
+    public String toString() {
+        return String.format("Name: %s | ID: %s | Course: %s | Grade: %.1f", 
+                           name, id, course, grade);
+    }
+}
+
+/**
+ * Main class for Student Management System
+ * Handles student records with file storage
+ */
+public class StudentManagementSystem {
+    private static ArrayList<Student> students = new ArrayList<>();
+    private static Scanner scanner = new Scanner(System.in);
+    private static final String DATA_FILE = "students.txt";
+
+    public static void main(String[] args) {
+        loadStudents(); // Load existing data when program starts
+        
+        while(true) {
+            showMenu();
+            int choice = getMenuChoice();
+            handleChoice(choice);
+        }
+    }
+
+    /**
+     * Displays the main menu options
+     */
+    private static void showMenu() {
+        System.out.println("\n ---HELLO,WELCOME---");
+        System.out.println("1. Add New Student");
+        System.out.println("2. View All Students");
+        System.out.println("3. Save Data to File");
+        System.out.println("4. Edit Student Record");
+        System.out.println("5. Remove Student");
+        System.out.println("6. Exit Program");
+        System.out.print("Enter your choice (1-6): ");
+    }
+
+    /**
+     * Gets and validates user's menu selection
+     * @return Validated user choice (1-6)
+     */
+    private static int getMenuChoice() {
+        while(true) {
+            try {
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Clear input buffer
+                if(choice >= 1 && choice <= 6) {
+                    return choice;
+                }
+                System.out.print("Invalid choice. Please enter 1-6: ");
+            } catch(InputMismatchException e) {
+                System.out.print("Please enter a number (1-6): ");
+                scanner.nextLine(); // Clear invalid input
+            }
+        }
+    }
+
+    /**
+     * Processes the user's menu selection
+     * @param choice The selected menu option
+     */
+    private static void handleChoice(int choice) {
+        switch(choice) {
+            case 1: addStudent(); break;
+            case 2: displayStudents(); break;
+            case 3: saveData(); break;
+            case 4: modifyStudent(); break;
+            case 5: deleteStudent(); break;
+            case 6: exitProgram(); break;
+            default: System.out.println("Invalid option");
+        }
+    }
+
+    /**
+     * Adds a new student to the system with validation
+     */
+    private static void addStudent() {
+        System.out.println("\n--- Add New Student ---");
+        
+        // Get and validate name
+        String name;
+        while(true) {
+            System.out.print("Student Name: ");
+            name = scanner.nextLine().trim();
+            if(!name.isEmpty()) break;
+            System.out.println("Name cannot be empty!");
+        }
+
+        // Get and validate unique ID
+        String id;
+        while(true) {
+            System.out.print("Student ID: ");
+            id = scanner.nextLine().trim();
+            if(id.isEmpty()) {
+                System.out.println("ID cannot be empty!");
+                continue;
+            }
+            if(findById(id) == -1) break;
+            System.out.println("This ID already exists!");
+        }
+
+        // Get and validate course
+        String course;
+        while(true) {
+            System.out.print("Course: ");
+            course = scanner.nextLine().trim();
+            if(!course.isEmpty()) break;
+            System.out.println("Course cannot be empty!");
+        }
+
+        // Get and validate grade
+        double grade = -1;
+        while(grade < 0 || grade > 100) {
+            try {
+                System.out.print("Grade (0-100): ");
+                grade = scanner.nextDouble();
+                if(grade < 0 || grade > 100) {
+                    System.out.println("Grade must be 0-100!");
+                }
+            } catch(InputMismatchException e) {
+                System.out.println("Please enter a number!");
+            } finally {
+                scanner.nextLine(); // Clear input buffer
+            }
+        }
+
+        // Add the new student
+        students.add(new Student(name, id, course, grade));
+        System.out.println("Student added successfully!");
+    }
+
+    /**
+     * Displays all registered students
+     */
+    private static void displayStudents() {
+        System.out.println("\n--- Student Records ---");
+        if(students.isEmpty()) {
+            System.out.println("No students registered yet.");
+            return;
+        }
+        
+        for(int i = 0; i < students.size(); i++) {
+            System.out.println((i+1) + ". " + students.get(i));
+        }
+    }
+
+    /**
+     * Saves all student data to file
+     */
+    private static void saveData() {
+        try(BufferedWriter writer = new BufferedWriter(new FileWriter(DATA_FILE))) {
+            for(Student s : students) {
+                writer.write(String.format("%s,%s,%s,%.1f%n", 
+                    s.getName(), s.getId(), s.getCourse(), s.getGrade()));
+            }
+            System.out.println("Data saved successfully to " + DATA_FILE);
+        } catch(IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Modifies an existing student's record
+     */
+    private static void modifyStudent() {
+        if(students.isEmpty()) {
+            System.out.println("No students to modify.");
+            return;
+        }
+        
+        displayStudents();
+        int index = getStudentIndex("Enter student number to edit: ");
+        Student current = students.get(index);
+        
+        System.out.println("\nEditing: " + current.getName());
+        System.out.println("Leave blank to keep current value");
+        
+        // Update name
+        System.out.print("New name (" + current.getName() + "): ");
+        String name = scanner.nextLine().trim();
+        if(name.isEmpty()) name = current.getName();
+        
+        // Update ID with uniqueness check
+        String id;
+        while(true) {
+            System.out.print("New ID (" + current.getId() + "): ");
+            id = scanner.nextLine().trim();
+            if(id.isEmpty()) {
+                id = current.getId();
+                break;
+            }
+            int existing = findById(id);
+            if(existing == -1 || existing == index) break;
+            System.out.println("This ID already exists!");
+        }
+        
+        // Update course
+        System.out.print("New course (" + current.getCourse() + "): ");
+        String course = scanner.nextLine().trim();
+        if(course.isEmpty()) course = current.getCourse();
+        
+        // Update grade
+        double grade = current.getGrade();
+        while(true) {
+            System.out.print("New grade (" + current.getGrade() + "): ");
+            String input = scanner.nextLine().trim();
+            if(input.isEmpty()) break;
+            try {
+                double newGrade = Double.parseDouble(input);
+                if(newGrade >= 0 && newGrade <= 100) {
+                    grade = newGrade;
+                    break;
+                }
+                System.out.println("Grade must be 0-100!");
+            } catch(NumberFormatException e) {
+                System.out.println("Please enter a number!");
+            }
+        }
+        
+        // Apply updates
+        students.set(index, new Student(name, id, course, grade));
+        System.out.println("Record updated successfully!");
+    }
+
+    /**
+     * Removes a student from the system
+     */
+    private static void deleteStudent() {
+        if(students.isEmpty()) {
+            System.out.println("No students to remove.");
+            return;
+        }
+        
+        displayStudents();
+        int index = getStudentIndex("Enter student number to remove: ");
+        
+        System.out.println("Removing: " + students.get(index).getName());
+        students.remove(index);
+        System.out.println("Student removed successfully!");
+    }
+
+    /**
+     * Loads student data from file
+     */
+    private static void loadStudents() {
+        try(BufferedReader reader = new BufferedReader(new FileReader(DATA_FILE))) {
+            String line;
+            while((line = reader.readLine()) != null) {
+                String[] data = line.split(",");
+                if(data.length == 4) {
+                    try {
+                        students.add(new Student(
+                            data[0], data[1], data[2], 
+                            Double.parseDouble(data[3])
+                        ));
+                    } catch(NumberFormatException e) {
+                        System.out.println("Skipping invalid record: " + line);
+                    }
+                }
+            }
+            System.out.println("Loaded " + students.size() + " student records");
+        } catch(FileNotFoundException e) {
+            System.out.println("No existing data file found. Starting fresh.");
+        } catch(IOException e) {
+            System.out.println("Error loading data: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Finds student index by ID
+     * @param id The student ID to search for
+     * @return Index if found, -1 if not found
+     */
+    private static int findById(String id) {
+        for(int i = 0; i < students.size(); i++) {
+            if(students.get(i).getId().equals(id)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Gets valid student index from user
+     * @param prompt The message to display
+     * @return Valid student index
+     */
+    private static int getStudentIndex(String prompt) {
+        while(true) {
+            try {
+                System.out.print(prompt);
+                int index = scanner.nextInt() - 1;
+                scanner.nextLine(); // Clear input buffer
+                if(index >= 0 && index < students.size()) {
+                    return index;
+                }
+                System.out.println("Please enter 1-" + students.size());
+            } catch(InputMismatchException e) {
+                System.out.println("Please enter a number!");
+                scanner.nextLine(); // Clear invalid input
+            }
+        }
+    }
+
+    /**
+     * Safely exits the program
+     */
+    private static void exitProgram() {
+        System.out.println("\nSaving data before exiting...");
+        saveData();
+        System.out.println("Thank you for using the system. Goodbye!");
+        scanner.close();
+        System.exit(0);
+    }
+}
